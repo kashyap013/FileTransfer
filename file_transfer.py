@@ -18,7 +18,8 @@ DESTINATION_OPTIONS = {
     "3": "3__Post-Conformal Coating",
     "4": "4__Assembly",
     "5": "5__Final Outgoing",
-    "6": "6__Misc"
+    "6": "6__Misc",
+    "7": "7__Pre-Vibration & Shock Testing"
 }
 
 # === CREATE UNIQUE FILENAME WHERE SAME NAME FILE IS ALREADY PRESENT ===
@@ -91,11 +92,15 @@ def move_file(serial_number, file_path, source_folder, destination_subfolder):
     board_prefix = serial_number[:6]
     target_folder = os.path.join(DESTINATION_ROOT, board_prefix, serial_number, destination_subfolder)
 
-    # Skip move if destination folder doesn't exist
+    # Create destination folder if it doesn't exist
     if not os.path.exists(target_folder):
-        log_message(f"Warning: '{destination_subfolder}' folder not found at {target_folder}. Skipping move.\n", print_console=True)
-        skipped_count += 1
-        return
+        try:
+            os.makedirs(target_folder)
+            log_message(f"Created destination folder: {target_folder}\n", print_console=True)
+        except OSError as e:
+            log_message(f"Warning: Error creating destination folder {target_folder}: {e}\n", print_console=True)
+            skipped_count += 1
+            return
 
     # Ensure filename doesn't overwrite existing one
     destination_path = get_unique_filename(target_folder, original_filename)
@@ -167,7 +172,7 @@ def main():
         print(f"{key}. {name}")
     selected_key = None
     while selected_key not in DESTINATION_OPTIONS:
-        user_input = input("Enter the number corresponding to your choice (0-6), or 'q' to quit: ").strip()
+        user_input = input("Enter the number corresponding to your choice (0-7), or 'q' to quit: ").strip()
         if user_input.lower() == 'q':
             print("👋 Exiting script. Goodbye!")
             sys.exit(0)
@@ -187,6 +192,18 @@ def main():
         base_path = os.path.dirname(os.path.abspath(__file__))
 
     source_folder = os.path.join(base_path, "Files")
+
+    # Create 'Files' directory if it doesn't exist
+    if not os.path.exists(source_folder):
+        try:
+            os.makedirs(source_folder)
+            log_message(f"'Files' folder created at: {source_folder}\n", print_console=True)
+        except OSError as e:
+            log_message(f"Error creating 'Files' folder: {e}", print_console=True)
+            sys.exit(1)
+    elif not os.path.isdir(source_folder):
+        log_message(f"Warning: '{source_folder}' exists but is not a directory!", print_console=True)
+        sys.exit(1)
 
     # Validate that the source folder exists
     if not os.path.isdir(source_folder):
