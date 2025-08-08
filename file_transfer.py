@@ -7,7 +7,7 @@ import time
 
 # === GLOBALS ===
 LOG_FILE = "process_logs.txt"  # Log file to record actions and issues
-DESTINATION_ROOT = r"P:\__Product_Quality"  # Root path where files will be organized and moved
+DESTINATION_ROOT = r"\\10.7.8.8\cor\PRD\__Product_Quality"  # Root path where files will be organized and moved
 
 # === DESTINATION OPTIONS ===
 # Mapping of user choices to specific subfolders in the destination
