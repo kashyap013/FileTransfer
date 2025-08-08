@@ -9,18 +9,21 @@ import time
 LOG_FILE = "process_logs.txt"  # Log file to record actions and issues
 DESTINATION_ROOT = r"\\10.7.8.8\cor\PRD\__Product_Quality"  # Root path where files will be organized and moved
 
-# === DESTINATION OPTIONS ===
-# Mapping of user choices to specific subfolders in the destination
-DESTINATION_OPTIONS = {
-    "0": "0__QI",
-    "1": "1__PCA Incoming",
-    "2": "2__Pre-Conformal Coating",
-    "3": "3__Post-Conformal Coating",
-    "4": "4__Assembly",
-    "5": "5__Final Outgoing",
-    "6": "6__Misc",
-    "7": "7__Pre-Vibration & Shock Testing"
+# === DESTINATION MAPPINGS ===
+# Mapping of keywords in filenames to destination subfolder names
+DESTINATION_MAPPING = {
+    "QI": "0__QI",
+    "PCAIncoming": "1__PCA Incoming",
+    "PreConformal": "2__Pre-Conformal Coating",
+    "PostConformal": "3__Post-Conformal Coating",
+    "Assembly": "4__Assembly",
+    "FinalOutgoing": "5__Final Outgoing",
+    "Misc": "6__Misc",
+    "PreVibration": "7__Pre-Vibration & Shock Testing"
 }
+
+# Default destination if no keyword is found
+DEFAULT_DESTINATION = "6__Misc"
 
 # === CREATE UNIQUE FILENAME WHERE SAME NAME FILE IS ALREADY PRESENT ===
 def get_unique_filename(folder, filename):
@@ -78,6 +81,29 @@ def log_message(message, print_console=False):
         log.write(entry + "\n")
     if print_console:
         print(message)
+
+# === EXTRACT DESTINATION FROM FILENAME ===
+def extract_destination_from_filename(filename):
+    """
+    Extracts the destination subfolder from a filename.
+    Expects format like: 1537010058_FinalOutgoing_IMG05.jpg
+    Returns the appropriate destination subfolder name.
+    """
+    try:
+        parts = re.split(r"[_\-]", filename)
+        if len(parts) >= 2:
+            # The destination keyword should be the second part
+            keyword = parts[1].strip()
+            
+            # Look for any mapping key contained in the keyword
+            for key, destination in DESTINATION_MAPPING.items():
+                if key in keyword:
+                    return destination
+    except Exception as e:
+        log_message(f"Warning: Error extracting destination from filename {filename}: {e}", print_console=True)
+    
+    # If no match is found or there was an error, use the default
+    return DEFAULT_DESTINATION
 
 # === FILE OPERATIONS ===
 def move_file(serial_number, file_path, source_folder, destination_subfolder):
@@ -150,9 +176,9 @@ def validate_serial_and_prefix(raw_serial, filename, valid_prefixes):
 def main():
     """
     Entry point of the script. Handles:
-    - User prompt for destination folder
     - Prefix loading
     - Scans 'Files' folder
+    - Determines destination folder from filename
     - Validates filenames and moves files
     - Logging summary at the end including timing stats
     """
@@ -165,25 +191,6 @@ def main():
         valid_prefixes = load_valid_prefixes()
     except (FileNotFoundError, ValueError):
         sys.exit(1)
-
-    # Destination folder selection
-    print("Please select the destination folder for Files:")
-    for key, name in DESTINATION_OPTIONS.items():
-        print(f"{key}. {name}")
-    selected_key = None
-    while selected_key not in DESTINATION_OPTIONS:
-        user_input = input("Enter the number corresponding to your choice (0-7), or 'q' to quit: ").strip()
-        if user_input.lower() == 'q':
-            print("👋 Exiting script. Goodbye!")
-            sys.exit(0)
-        if user_input in DESTINATION_OPTIONS:
-            selected_key = user_input
-        else:
-            print("❌ Invalid input.")
-
-    destination_subfolder = DESTINATION_OPTIONS[selected_key]
-
-    input(f"✅ You selected: {destination_subfolder}\nPlease copy all files into 'Files' folder and press Enter to begin...\n")
 
     # Determine script's working directory
     if getattr(sys, 'frozen', False):
@@ -205,18 +212,15 @@ def main():
         log_message(f"Warning: '{source_folder}' exists but is not a directory!", print_console=True)
         sys.exit(1)
 
-    # Validate that the source folder exists
-    if not os.path.isdir(source_folder):
-        log_message(f"Warning: 'Files' folder not found at expected path: {source_folder}\n", print_console=True)
-        sys.exit(1)
-
     # Start log
     log_message("*" * 80, print_console=True)
-    log_message("File Transfer Script execution started.\n", print_console=True)
+    log_message("File Transfer Script execution started", print_console=True)
+    log_message("This version automatically determines destination folders from filenames.\n", print_console=True)
 
     # Start timing
     start_time = time.time()
     total_files_processed = 0
+    destination_counts = {}  # Track files by destination
 
     # === Process all files in the 'Files' folder ===
     for filename in os.listdir(source_folder):
@@ -224,19 +228,29 @@ def main():
         
         if os.path.isfile(file_path):
             total_files_processed += 1
+            
             try:
                 extracted_serial = re.split(r"[_\-]", filename)[0]
             except IndexError:
                 extracted_serial = ""  # or some default value
                 log_message(f"Warning: Could not extract serial number from {filename}. Invalid filename format.", print_console=True)
             
-            # === Serial number validation and move file operation ===
+            # === Serial number validation ===
             is_valid, message, serial = validate_serial_and_prefix(extracted_serial, filename, valid_prefixes)
             
             if not is_valid:
                 skipped_count += 1
                 log_message(message, print_console=True)
             else:
+                # Determine the destination subfolder from the filename
+                destination_subfolder = extract_destination_from_filename(filename)
+                
+                # Track destination counts for summary
+                if destination_subfolder not in destination_counts:
+                    destination_counts[destination_subfolder] = 0
+                destination_counts[destination_subfolder] += 1
+                              
+                # Move the file to its destination
                 move_file(serial, file_path, source_folder, destination_subfolder)
            
     # === TIME CALCULATION ===
@@ -248,10 +262,18 @@ def main():
     log_message("=" * 40, print_console=True)
     log_message(f"Total files processed: {total_files_processed}", print_console=True)
     log_message(f"Total files moved: {moved_count}", print_console=True)
-    log_message(f"Total files skipped: {skipped_count}", print_console=True)
+    log_message(f"Total files skipped: {skipped_count}", print_console=True)    
     log_message(f"Total time taken: {minutes} minute(s) {seconds} second(s)", print_console=True)
     log_message(f"Average time per file: {average_time:.2f} second(s)", print_console=True)
     log_message("=" * 40, print_console=True)
+
+    # Display destination breakdown
+    if destination_counts:
+        log_message("Files by destination:", print_console=True)
+        for dest, count in destination_counts.items():
+            log_message(f"  {dest}: {count} file(s)", print_console=True)
+    log_message("=" * 40, print_console=True)
+    
     log_message("File Transfer Script execution completed.", print_console=True)
     log_message("*" * 80, print_console=True)
 
