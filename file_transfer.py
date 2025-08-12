@@ -257,6 +257,7 @@ def main():
     start_time = time.time()
     total_files_processed = 0
     destination_counts = {}  # Track files by destination
+    prefix_counts = {}       # Track files by prefix
 
     # === Process all files in the 'Files' folder ===
     for filename in os.listdir(source_folder):
@@ -278,6 +279,12 @@ def main():
                 skipped_count += 1
                 log_message(message, print_console=True)
             else:
+                # Extract and track prefix
+                prefix = serial[:6]
+                if prefix not in prefix_counts:
+                    prefix_counts[prefix] = 0
+                prefix_counts[prefix] += 1
+                
                 # Determine the destination subfolder from the filename
                 destination_subfolder = extract_destination_from_filename(filename)
                 
@@ -308,6 +315,13 @@ def main():
         log_message("Files by destination:", print_console=True)
         for dest, count in destination_counts.items():
             log_message(f"  {dest}: {count} file(s)", print_console=True)
+    log_message("=" * 40, print_console=True)
+    
+    # Display prefix breakdown
+    if prefix_counts:
+        log_message("Files by prefix:", print_console=True)
+        for prefix, count in prefix_counts.items():
+            log_message(f"  {prefix}: {count} file(s)", print_console=True)
     log_message("=" * 40, print_console=True)
     
     log_message("File Transfer Script execution completed.", print_console=True)
