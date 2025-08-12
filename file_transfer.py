@@ -11,15 +11,23 @@ def setup_logging():
     Sets up logging to a unique log file in the Logs directory.
     Returns the path to the created log file.
     """
-    # Create Logs directory if it doesn't exist
-    logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Logs")
+    # Determine base directory (where the exe is located)
+    if getattr(sys, 'frozen', False):
+        # If running as executable
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # If running as script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    
+    # Create Logs directory at the base path
+    logs_dir = os.path.join(base_path, "Logs")
     if not os.path.exists(logs_dir):
         try:
             os.makedirs(logs_dir)
         except Exception as e:
             print(f"Error creating Logs directory: {e}")
-            # Fall back to current directory
-            logs_dir = os.path.dirname(os.path.abspath(__file__))
+            # Fall back to base directory
+            logs_dir = base_path
     
     # Create a unique log filename based on current timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
