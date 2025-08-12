@@ -5,8 +5,43 @@ import shutil
 import sys
 import time
 
+# === LOG FILE SETUP ===
+def setup_logging():
+    """
+    Sets up logging to a unique log file in the Logs directory.
+    Returns the path to the created log file.
+    """
+    # Determine base directory (where the exe is located)
+    if getattr(sys, 'frozen', False):
+        # If running as executable
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # If running as script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    
+    # Create Logs directory at the base path
+    logs_dir = os.path.join(base_path, "Logs")
+    if not os.path.exists(logs_dir):
+        try:
+            os.makedirs(logs_dir)
+        except Exception as e:
+            print(f"Error creating Logs directory: {e}")
+            # Fall back to base directory
+            logs_dir = base_path
+    
+    # Create a unique log filename based on current timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"transfer_log_{timestamp}.txt"
+    log_path = os.path.join(logs_dir, log_filename)
+    
+    # Write header to the new log file
+    with open(log_path, "w", encoding="utf-8") as log:
+        log.write(f"=== File Transfer Log: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n\n")
+    
+    return log_path
+
 # === GLOBALS ===
-LOG_FILE = "process_logs.txt"  # Log file to record actions and issues
+LOG_FILE = setup_logging()  # Initialize with a unique log file path
 DESTINATION_ROOT = r"\\10.7.8.8\cor\PRD\__Product_Quality"  # Root path where files will be organized and moved
 
 # === DESTINATION OPTIONS ===
@@ -19,7 +54,8 @@ DESTINATION_OPTIONS = {
     "4": "4__Assembly",
     "5": "5__Final Outgoing",
     "6": "6__Misc",
-    "7": "7__Pre-Vibration & Shock Testing"
+    "7": "7__Pre-Vibration & Shock Testing",
+    "8": "8__Post-Vibration & Shock Testing"
 }
 
 # === CREATE UNIQUE FILENAME WHERE SAME NAME FILE IS ALREADY PRESENT ===
@@ -172,7 +208,7 @@ def main():
         print(f"{key}. {name}")
     selected_key = None
     while selected_key not in DESTINATION_OPTIONS:
-        user_input = input("Enter the number corresponding to your choice (0-7), or 'q' to quit: ").strip()
+        user_input = input("Enter the number corresponding to your choice (0-8), or 'q' to quit: ").strip()
         if user_input.lower() == 'q':
             print("👋 Exiting script. Goodbye!")
             sys.exit(0)
@@ -217,6 +253,7 @@ def main():
     # Start timing
     start_time = time.time()
     total_files_processed = 0
+    prefix_counts = {}       # Track files by prefix
 
     # === Process all files in the 'Files' folder ===
     for filename in os.listdir(source_folder):
@@ -237,6 +274,13 @@ def main():
                 skipped_count += 1
                 log_message(message, print_console=True)
             else:
+                # Extract and track prefix
+                prefix = serial[:6]
+                if prefix not in prefix_counts:
+                    prefix_counts[prefix] = 0
+                prefix_counts[prefix] += 1
+                
+                # Move the file
                 move_file(serial, file_path, source_folder, destination_subfolder)
            
     # === TIME CALCULATION ===
@@ -252,8 +296,28 @@ def main():
     log_message(f"Total time taken: {minutes} minute(s) {seconds} second(s)", print_console=True)
     log_message(f"Average time per file: {average_time:.2f} second(s)", print_console=True)
     log_message("=" * 40, print_console=True)
+    
+    # Display destination summary
+    log_message(f"All files were moved to: {destination_subfolder}", print_console=True)
+    log_message("=" * 40, print_console=True)
+    
+    # Display prefix breakdown
+    if prefix_counts:
+        log_message("Files by prefix:", print_console=True)
+        for prefix, count in prefix_counts.items():
+            log_message(f"  {prefix}: {count} file(s)", print_console=True)
+    log_message("=" * 40, print_console=True)
+    
     log_message("File Transfer Script execution completed.", print_console=True)
     log_message("*" * 80, print_console=True)
+    
+    # Log the path to the log file itself
+    print(f"\nLog file saved to: {LOG_FILE}")
+    
+    # Keep console window open when running as exe
+    if getattr(sys, 'frozen', False):
+        print("\nPress Enter to exit...")
+        input()  # Wait for user to press Enter
 
 # === SCRIPT ENTRY POINT ===
 if __name__ == "__main__":
