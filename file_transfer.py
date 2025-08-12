@@ -5,8 +5,35 @@ import shutil
 import sys
 import time
 
+# === LOG FILE SETUP ===
+def setup_logging():
+    """
+    Sets up logging to a unique log file in the Logs directory.
+    Returns the path to the created log file.
+    """
+    # Create Logs directory if it doesn't exist
+    logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Logs")
+    if not os.path.exists(logs_dir):
+        try:
+            os.makedirs(logs_dir)
+        except Exception as e:
+            print(f"Error creating Logs directory: {e}")
+            # Fall back to current directory
+            logs_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Create a unique log filename based on current timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"transfer_log_{timestamp}.txt"
+    log_path = os.path.join(logs_dir, log_filename)
+    
+    # Write header to the new log file
+    with open(log_path, "w", encoding="utf-8") as log:
+        log.write(f"=== File Transfer Log: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n\n")
+    
+    return log_path
+
 # === GLOBALS ===
-LOG_FILE = "process_logs.txt"  # Log file to record actions and issues
+LOG_FILE = setup_logging()  # Initialize with a unique log file path
 DESTINATION_ROOT = r"\\10.7.8.8\cor\PRD\__Product_Quality"  # Root path where files will be organized and moved
 
 # === DESTINATION MAPPINGS ===
@@ -19,7 +46,8 @@ DESTINATION_MAPPING = {
     "Assembly": "4__Assembly",
     "FinalOutgoing": "5__Final Outgoing",
     "Misc": "6__Misc",
-    "PreVibration": "7__Pre-Vibration & Shock Testing"
+    "PreVibration": "7__Pre-Vibration & Shock Testing",
+    "PostVibration": "8__Post-Vibration & Shock Testing"
 }
 
 # Default destination if no keyword is found
@@ -276,6 +304,9 @@ def main():
     
     log_message("File Transfer Script execution completed.", print_console=True)
     log_message("*" * 80, print_console=True)
+    
+    # Log the path to the log file itself
+    print(f"\nLog file saved to: {LOG_FILE}")
 
 # === SCRIPT ENTRY POINT ===
 if __name__ == "__main__":
