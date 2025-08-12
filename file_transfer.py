@@ -307,6 +307,11 @@ def main():
     
     # Log the path to the log file itself
     print(f"\nLog file saved to: {LOG_FILE}")
+    
+    # Keep console window open when running as exe
+    if getattr(sys, 'frozen', False):
+        print("\nPress Enter to exit...")
+        input()  # Wait for user to press Enter
 
 # === SCRIPT ENTRY POINT ===
 if __name__ == "__main__":
